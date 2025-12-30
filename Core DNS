@@ -1,0 +1,158 @@
+Perfect choice 👍
+These two steps are core Stripe DNA. We’ll do them properly and practically, not theory.
+STEP 4 — M-Pesa Flow Diagrams (Real, Buildable)
+Below are exact flows your backend should follow. You can literally code from this.
+4.1 M-Pesa STK Push — End-to-End Flow
+Actors
+Client App (Frontend)
+Paycraft API (You)
+M-Pesa Provider (via PSP)
+Customer Phone
+Flow (Step-by-Step)
+Copy code
+
+1. Client → Paycraft API
+   POST /v1/payments
+   { amount, phone, reference }
+
+2. Paycraft
+   - Validate request
+   - Create payment record (status = pending)
+   - Generate idempotency key
+
+3. Paycraft → PSP → M-Pesa
+   STK Push request
+
+4. M-Pesa → Customer Phone
+   "Enter PIN to pay KES 1500"
+
+5. Customer
+   - Confirms OR cancels
+
+6. M-Pesa → PSP → Paycraft (callback)
+   Payment result
+
+7. Paycraft
+   - Verify signature
+   - Update payment status
+   - Emit webhook event
+
+8. Paycraft → Merchant Webhook
+   payment.successful OR payment.failed
+Key Design Decisions (Very Important)
+✔ Never trust M-Pesa blindly
+✔ Always verify callbacks
+✔ Webhooks are source of truth, not polling
+4.2 Payment State Machine (Stripe-Style)
+Copy code
+
+created
+  ↓
+pending
+  ↓
+successful  → final
+failed      → final
+expired     → final
+Rules:
+successful is irreversible
+expired happens after STK timeout (e.g. 5 min)
+No silent state changes
+4.3 Retry & Idempotency (Critical in Kenya)
+Why?
+Networks fail
+Callbacks duplicate
+Users retry
+How Stripe Does It (You copy this)
+Every request includes:
+Copy code
+Http
+Idempotency-Key: uuid
+Same key = same result
+No double charges
+4.4 What NOT to Do
+❌ Do not block API waiting for M-Pesa
+❌ Do not rely on frontend polling
+❌ Do not assume callbacks arrive once
+STEP 5 — Sandbox Logic (This Is Your Secret Weapon)
+Stripe’s sandbox is why developers love it.
+You’ll replicate the same feeling.
+5.1 Test vs Live Mode (Hard Separation)
+API Keys
+Mode
+Key
+Sandbox
+sk_test_xxx
+Live
+sk_live_xxx
+Rule:
+If key starts with sk_test, never call real M-Pesa
+5.2 Fake Payment Engine (Core Idea)
+Instead of M-Pesa, sandbox uses rules.
+Test Phone Numbers
+Copy code
+Txt
+254700000001 → successful
+254700000002 → insufficient_funds
+254700000003 → user_cancelled
+254700000004 → timeout
+5.3 Sandbox Payment Flow
+Copy code
+
+1. Client → /v1/payments (test key)
+
+2. Paycraft Sandbox Engine
+   - Match phone number rule
+   - Create payment (pending)
+
+3. Background job (2–5 sec delay)
+
+4. Auto-resolve payment:
+   - success / failed / expired
+
+5. Emit webhook event
+✔ Looks real
+✔ Feels real
+✔ Zero risk
+5.4 Fake Webhooks (This Is Important)
+Sandbox must still send webhooks.
+Example:
+Copy code
+Json
+{
+  "event": "payment.successful",
+  "livemode": false,
+  "data": {
+    "id": "pay_test_123",
+    "amount": 1500
+  }
+}
+Developers should:
+Build logic once
+Switch to live later
+Nothing breaks
+5.5 Sandbox Dashboard (Minimal)
+Only show:
+API keys
+Test logs
+Webhook delivery status
+Replay webhook button
+❌ No analytics
+❌ No charts
+❌ No noise
+Stripe kept dashboards boring on purpose.
+5.6 Sandbox Gotchas (Avoid These)
+❌ Don’t make sandbox “too fake”
+❌ Don’t skip webhook retries
+❌ Don’t behave differently than live
+Sandbox ≠ demo
+Sandbox = practice environment
+How These Two Steps Create a Moat 🧠
+Most African gateways:
+Ignore sandbox
+Focus on merchants
+Break in edge cases
+You:
+Win developers
+Reduce support load
+Become default choice
+That’s how Stripe won.
