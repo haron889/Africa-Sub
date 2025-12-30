@@ -1,0 +1,132 @@
+Recurring Billing Explained
+Simple Definition
+Recurring billing = automatically charging a customer on a regular schedule (weekly, monthly, yearly) for a subscription or service.
+Think: Netflix, Spotify, your gym membership.
+How It Works (Step by Step)
+Traditional One-Time Payment:
+Customer buys something → you charge them once → done
+Recurring Billing:
+Customer subscribes (agrees to regular charges)
+You charge them automatically every month/week/year
+Continues until they cancel
+Real Examples
+Business
+What They Sell
+Billing Cycle
+Netflix
+Streaming access
+Monthly
+Spotify
+Music access
+Monthly
+GitHub
+Code hosting
+Monthly/Yearly
+Gym membership
+Gym access
+Monthly
+SaaS startup
+Software tool
+Monthly/Yearly
+Why It's Harder Than One-Time Payments
+Problems That Happen:
+1. Failed Payments
+Customer's M-Pesa wallet is empty
+Card expires
+Bank declines the charge
+What should happen: Retry automatically (maybe 3 times over 5 days), then notify customer
+2. Changing Plans
+Customer upgrades from $10/month → $50/month mid-cycle
+Do you charge immediately? Prorate? Wait until next billing date?
+3. Cancellations
+Customer cancels on Day 15 of a 30-day cycle
+Do they keep access until Day 30? Get a refund?
+4. Dunning (Dealing with Failed Payments)
+Send reminder emails
+Update payment method prompts
+Grace periods before suspending service
+5. Reconciliation
+Match M-Pesa payment confirmations to subscription charges
+Handle duplicate payments
+Track who paid, who didn't
+Why Kenyan SaaS Companies Struggle With This
+Most payment gateways (Flutterwave, Paystack) give you:
+✅ A way to charge someone once
+❌ No built-in subscription management
+❌ No automatic retries
+❌ No dunning emails
+❌ No proration logic
+So developers have to build all of this themselves — which is hard.
+What a "Stripe for Subscriptions" Would Do
+Core Features:
+1. Create a subscription (API call)
+const subscription = await payments.subscriptions.create({
+  customer: "cust_123",
+  plan: "premium_monthly", // KES 1000/month
+  payment_method: "mpesa_254712345678"
+});
+2. Automatic charging
+System charges customer every month automatically
+Handles retries if payment fails
+3. Webhooks (notifications)
+subscription.payment_succeeded → Send receipt email
+subscription.payment_failed → Send "update payment method" email
+subscription.canceled → Disable customer's account
+4. Customer portal
+Let customers update payment methods
+View billing history
+Cancel subscription
+5. Analytics dashboard
+Monthly Recurring Revenue (MRR)
+Churn rate
+Failed payment rate
+Why This Is Valuable in Kenya
+Kenyan SaaS Startups Need This:
+EdTech platforms (monthly access to courses)
+Fintech apps (premium features subscription)
+B2B SaaS (business software, monthly billing)
+Content platforms (paywalled articles, monthly access)
+Current Pain:
+They're either:
+Building this manually (expensive, buggy)
+Using Flutterwave/Paystack but handling failures poorly
+Avoiding subscriptions entirely (using one-time payments only)
+How You'd Compete
+Feature
+Flutterwave
+Paystack
+Your Product
+Subscriptions
+Basic
+Basic
+Advanced
+Failed payment retries
+Manual
+Limited
+Automatic (smart)
+Proration
+No
+No
+Yes
+Dunning emails
+No
+No
+Yes
+M-Pesa + Cards
+Yes
+Yes
+Yes
+Developer experience
+OK
+Good
+Excellent
+The Business Model
+You'd charge:
+Transaction fee: 1.5% + KES 5 per successful charge
+Monthly SaaS fee: KES 5,000/month for advanced features (analytics, dunning, proration)
+Setup: Free (self-serve)
+Bottom Line
+Recurring billing = charging customers automatically on a schedule.
+The opportunity: African payment gateways don't handle the complexity well. SaaS companies need someone to solve this.
+Your wedge: "We handle subscriptions perfectly so you don't have to build it."
+Does this make sense? Want me to show you what the actual API would look like for a Kenyan developer trying to set up subscriptions?
