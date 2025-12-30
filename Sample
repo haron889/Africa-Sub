@@ -1,0 +1,23 @@
+{
+  "error": {
+    "code": "invalid_phone",
+    "message": "Use international format: 2547XXXXXXXX"
+  }
+}docs/
+├── intro.md
+├── quickstart.md
+├── auth.md
+├── payments.md
+├── webhooks.md
+├── errors.md
+├── testing.md
+└── changelog.mdcurl https://api.paycraft.co/v1/payments \
+  -H "Authorization: Bearer sk_test_xxx" \
+  -d amount=1500errors.jspaycraft-node/
+├── src/
+│   ├── index.js
+│   ├── payments.js
+│   ├── subscriptions.js
+│   └── errors.js
+└── README.md254700000001 → success
+254700000002 → insufficient_funds
