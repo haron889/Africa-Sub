@@ -1,0 +1,353 @@
+Recurring Billing API Design (Kenya-First)
+Overview
+This is what a Stripe-style subscription API would look like for Kenyan developers, optimized for M-Pesa + cards.
+1. Authentication
+# All API calls use your secret key
+Authorization: Bearer sk_live_xxxxxxxxxxxx
+Test vs Live Keys:
+sk_test_xxxx → Test mode (fake M-Pesa, no real charges)
+sk_live_xxxx → Live mode (real money)
+2. Core Objects (Data Models)
+Customer
+{
+  "id": "cust_K3n7YaRaNd0m",
+  "email": "john@example.com",
+  "phone": "+254712345678",
+  "name": "John Kamau",
+  "created_at": "2025-01-15T10:30:00Z"
+}
+Payment Method
+{
+  "id": "pm_MpEsA123",
+  "type": "mpesa",
+  "phone": "+254712345678",
+  "customer_id": "cust_K3n7YaRaNd0m"
+}
+Plan
+{
+  "id": "plan_premium",
+  "name": "Premium Plan",
+  "amount": 1000, // KES
+  "currency": "KES",
+  "interval": "month", // or "week", "year"
+  "trial_days": 7
+}
+Subscription
+{
+  "id": "sub_Abc123",
+  "customer_id": "cust_K3n7YaRaNd0m",
+  "plan_id": "plan_premium",
+  "status": "active", // or "trialing", "past_due", "canceled"
+  "current_period_start": "2025-01-15T00:00:00Z",
+  "current_period_end": "2025-02-15T00:00:00Z",
+  "cancel_at_period_end": false
+}
+3. API Endpoints
+Create a Customer
+POST /v1/customers
+{
+  "email": "john@example.com",
+  "phone": "+254712345678",
+  "name": "John Kamau"
+}
+Response:
+{
+  "id": "cust_K3n7YaRaNd0m",
+  "email": "john@example.com",
+  "phone": "+254712345678",
+  "name": "John Kamau"
+}
+Add Payment Method
+POST /v1/payment_methods
+{
+  "type": "mpesa",
+  "phone": "+254712345678",
+  "customer_id": "cust_K3n7YaRaNd0m"
+}
+Response:
+{
+  "id": "pm_MpEsA123",
+  "type": "mpesa",
+  "phone": "+254712345678",
+  "verified": true
+}
+Create a Plan
+POST /v1/plans
+{
+  "name": "Premium Plan",
+  "amount": 1000,
+  "currency": "KES",
+  "interval": "month",
+  "trial_days": 7
+}
+Response:
+{
+  "id": "plan_premium",
+  "name": "Premium Plan",
+  "amount": 1000,
+  "interval": "month",
+  "trial_days": 7
+}
+Create a Subscription ⭐ (Most Important)
+POST /v1/subscriptions
+{
+  "customer_id": "cust_K3n7YaRaNd0m",
+  "plan_id": "plan_premium",
+  "payment_method_id": "pm_MpEsA123",
+  "trial_days": 7 // Optional
+}
+What Happens:
+Customer enters 7-day trial (no charge yet)
+After 7 days, system automatically charges KES 1000 via M-Pesa
+Continues charging every month
+Retries automatically if payment fails
+Response:
+{
+  "id": "sub_Abc123",
+  "customer_id": "cust_K3n7YaRaNd0m",
+  "plan_id": "plan_premium",
+  "status": "trialing",
+  "trial_end": "2025-01-22T00:00:00Z",
+  "current_period_end": "2025-02-15T00:00:00Z"
+}
+Cancel a Subscription
+DELETE /v1/subscriptions/sub_Abc123
+Options:
+{
+  "cancel_at_period_end": true // Let them use until end of month
+}
+Response:
+{
+  "id": "sub_Abc123",
+  "status": "active",
+  "cancel_at_period_end": true,
+  "canceled_at": "2025-01-15T10:45:00Z"
+}
+Update Subscription (Change Plan)
+PATCH /v1/subscriptions/sub_Abc123
+{
+  "plan_id": "plan_enterprise", // KES 5000/month
+  "proration_behavior": "always_invoice" // Charge difference now
+}
+What Happens:
+Customer was on KES 1000/month plan
+Upgrades to KES 5000/month on Day 15 of 30-day cycle
+System calculates: They used 50% of current period
+Charges: (5000 - 1000) × 0.5 = KES 2000 immediately
+Next month: Full KES 5000
+4. Webhooks (Critical for Subscriptions)
+When events happen, we POST to your server:
+POST https://yourapp.com/webhooks
+Event Types:
+subscription.created
+{
+  "event": "subscription.created",
+  "data": {
+    "subscription_id": "sub_Abc123",
+    "customer_id": "cust_K3n7YaRaNd0m",
+    "status": "trialing"
+  }
+}
+subscription.trial_ending (3 days before trial ends)
+{
+  "event": "subscription.trial_ending",
+  "data": {
+    "subscription_id": "sub_Abc123",
+    "trial_end": "2025-01-22T00:00:00Z"
+  }
+}
+→ You send email: "Your trial ends in 3 days"
+payment.succeeded
+{
+  "event": "payment.succeeded",
+  "data": {
+    "subscription_id": "sub_Abc123",
+    "amount": 1000,
+    "currency": "KES",
+    "mpesa_receipt": "QGX7H8I9J0"
+  }
+}
+→ You send receipt email
+payment.failed
+{
+  "event": "payment.failed",
+  "data": {
+    "subscription_id": "sub_Abc123",
+    "attempt": 1, // First retry
+    "next_retry": "2025-02-16T00:00:00Z",
+    "reason": "insufficient_funds"
+  }
+}
+→ You send email: "Payment failed, please add funds to M-Pesa"
+payment.retry_exhausted (After 3 failed attempts)
+{
+  "event": "payment.retry_exhausted",
+  "data": {
+    "subscription_id": "sub_Abc123",
+    "status": "past_due"
+  }
+}
+→ You suspend customer's access
+subscription.canceled
+{
+  "event": "subscription.canceled",
+  "data": {
+    "subscription_id": "sub_Abc123",
+    "canceled_at": "2025-01-15T10:45:00Z"
+  }
+}
+5. Smart Retry Logic (Your Secret Weapon)
+When M-Pesa payment fails:
+Attempt
+Wait Time
+Action
+1st fail
+Retry immediately
+Send SMS: "Payment failed, trying again"
+2nd fail
+Wait 2 days
+Send email + SMS: "Please add funds"
+3rd fail
+Wait 3 days
+Send urgent email
+4th fail
+Give up
+Suspend subscription, send final notice
+Why this matters:
+M-Pesa fails often (wallet empty, network issues)
+Flutterwave/Paystack don't retry intelligently
+You save customers from losing access
+6. Code Example (Node.js)
+Setting Up a Subscription
+const PaymentsSDK = require('your-payments-sdk');
+const payments = new PaymentsSDK('sk_test_xxxx');
+
+// 1. Create customer
+const customer = await payments.customers.create({
+  email: 'john@example.com',
+  phone: '+254712345678',
+  name: 'John Kamau'
+});
+
+// 2. Add M-Pesa payment method
+const paymentMethod = await payments.paymentMethods.create({
+  type: 'mpesa',
+  phone: '+254712345678',
+  customer_id: customer.id
+});
+
+// 3. Create subscription
+const subscription = await payments.subscriptions.create({
+  customer_id: customer.id,
+  plan_id: 'plan_premium', // KES 1000/month
+  payment_method_id: paymentMethod.id,
+  trial_days: 7
+});
+
+console.log(`Subscription created: ${subscription.id}`);
+// → Customer starts 7-day trial
+// → Will be charged KES 1000 on Day 8
+// → Then every month automatically
+Handling Webhooks
+const express = require('express');
+const app = express();
+
+app.post('/webhooks', express.json(), (req, res) => {
+  const event = req.body;
+
+  switch(event.event) {
+    case 'payment.succeeded':
+      // Send receipt email
+      sendEmail(event.data.customer_email, 'Payment received!');
+      break;
+
+    case 'payment.failed':
+      // Alert customer
+      sendSMS(event.data.customer_phone, 'Payment failed. Please add M-Pesa funds.');
+      break;
+
+    case 'payment.retry_exhausted':
+      // Suspend account
+      disableCustomerAccess(event.data.customer_id);
+      break;
+  }
+
+  res.status(200).send('OK');
+});
+7. Dashboard (What Developers See)
+Metrics:
+MRR (Monthly Recurring Revenue): KES 450,000
+Active Subscriptions: 450
+Churn Rate: 5% (22 cancellations this month)
+Failed Payment Rate: 12% (54 failed, 48 recovered after retry)
+Recent Activity:
+✅ sub_Abc123 | John Kamau | Paid KES 1000 | 2 min ago
+❌ sub_Def456 | Jane Wanjiku | Payment failed (retry in 2 days) | 10 min ago
+🔄 sub_Ghi789 | Peter Omondi | Upgraded to Enterprise | 1 hour ago
+8. Kenya-Specific Features
+M-Pesa STK Push Integration
+When charging customer:
+// System sends M-Pesa STK push to customer's phone
+// Customer enters PIN
+// Payment confirmed
+// Webhook fires: payment.succeeded
+Paybill / Till Number Support
+{
+  "payment_method": {
+    "type": "mpesa_paybill",
+    "paybill": "123456",
+    "account_number": "cust_K3n7YaRaNd0m"
+  }
+}
+Multi-Currency (Later)
+{
+  "plan": {
+    "amount": 10, // USD
+    "currency": "USD",
+    "local_amount": 1300, // KES (auto-converted)
+    "local_currency": "KES"
+  }
+}
+9. Error Handling (Human-Readable)
+Bad Request:
+{
+  "error": {
+    "code": "invalid_phone",
+    "message": "Phone number must start with +254",
+    "param": "phone"
+  }
+}
+Failed Payment:
+{
+  "error": {
+    "code": "payment_failed",
+    "message": "Customer canceled M-Pesa prompt",
+    "decline_code": "user_canceled",
+    "next_retry": "2025-02-16T00:00:00Z"
+  }
+}
+10. Test Mode (Critical for Developers)
+Fake M-Pesa Numbers:
++254700000001 → Always succeeds
++254700000002 → Always fails (insufficient funds)
++254700000003 → Succeeds on 2nd retry
+Fast-Forward Time:
+POST /v1/test/advance_time
+{
+  "days": 30 // Simulate 30 days passing (trigger billing cycle)
+}
+Summary
+This API gives Kenyan developers:
+✅ 5 lines of code to set up subscriptions (vs 500+ manually)
+✅ Automatic retries when M-Pesa fails
+✅ Webhooks for every important event
+✅ Test mode with fake M-Pesa numbers
+✅ Proration for mid-cycle upgrades
+✅ Analytics (MRR, churn, failed payments)
+Next Steps
+Want me to:
+Design the database schema (how to store this data)?
+Map the 6-month build roadmap (what to build first)?
+Write the technical docs (like Stripe's docs)?
+Show pricing strategy (how to charge customers)?
+Which would help most?
