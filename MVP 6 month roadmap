@@ -1,0 +1,300 @@
+6-Month Build Roadmap (Kenya Recurring Billing API)
+Team Assumptions
+2 backend engineers (or 1 senior full-stack)
+1 frontend engineer (dashboard/docs)
+You (product, partnerships, early customers)
+PSP partner (licensed payment processor for M-Pesa integration)
+Month 1: Foundation + PSP Partnership
+Week 1-2: Infrastructure & Architecture
+Backend:
+Set up core infrastructure:
+PostgreSQL database (use Neon or Railway)
+REST API framework (Node.js + Express or Go)
+Redis for job queues
+Authentication system (API keys)
+Database schema for:
+Customers
+Payment methods
+Plans
+Subscriptions
+Transactions
+Partnerships:
+Sign agreement with PSP partner (Cellulant, DPO, or bank)
+Get M-Pesa test credentials
+Understand their webhook formats
+Deliverable: Basic API that accepts requests (no real payments yet)
+Week 3-4: Core API Endpoints (Test Mode Only)
+Build:
+POST /v1/customers
+POST /v1/payment_methods
+POST /v1/plans
+POST /v1/subscriptions
+GET  /v1/subscriptions/:id
+Test Mode Features:
+Fake M-Pesa numbers (+254700000001 = success)
+Simulate payment success/failure
+Basic validation (phone format, amount limits)
+Deliverable: Developers can create subscriptions in test mode
+Month 2: M-Pesa Integration + Webhooks
+Week 1-2: Live M-Pesa Integration
+Backend:
+Integrate PSP's M-Pesa STK Push API
+Handle M-Pesa callbacks (async payment confirmations)
+Reconciliation logic:
+Match M-Pesa receipt codes to transactions
+Handle duplicates
+Store payment metadata
+Build:
+Payment processing engine
+Transaction status tracking
+Idempotency keys (prevent duplicate charges)
+Deliverable: Can charge real M-Pesa wallets (manually triggered)
+Week 3-4: Webhook System
+Backend:
+Webhook infrastructure:
+Event queue system (Bull/BullMQ with Redis)
+Retry logic (exponential backoff)
+Webhook signature verification
+Event logs
+Events to support:
+subscription.created
+subscription.trial_ending
+payment.succeeded
+payment.failed
+subscription.canceled
+Frontend:
+Simple webhook tester page (developers can see incoming webhooks)
+Deliverable: Webhooks fire reliably when events occur
+Month 3: Billing Engine + First Customers
+Week 1-2: Automated Billing
+Backend:
+Cron job system (runs every hour):
+Check for subscriptions due for billing
+Trigger M-Pesa charges
+Update subscription status
+Trial period handling:
+Don't charge during trial
+Send "trial ending" webhook 3 days before
+Billing cycle logic:
+Calculate next billing date
+Handle timezone issues (EAT)
+Deliverable: Subscriptions charge automatically on schedule
+Week 3-4: Smart Retry Logic
+Backend:
+Failed payment retry system:
+| Attempt | Wait | Action |
+|---------|------|--------|
+| 1st | Immediate | Retry once |
+| 2nd | +2 days | Send notification |
+| 3rd | +3 days | Send urgent notice |
+| 4th | +2 days | Mark as past_due |
+Dunning email triggers (integrate SendGrid/Mailgun)
+SMS notifications via Africa's Talking
+Deliverable: Failed payments retry intelligently
+🎯 Launch Prep
+Find 3-5 Design Partners:
+Kenyan SaaS startups (EdTech, fintech, B2B tools)
+Offer free integration support
+Commitment: They'll integrate and give feedback
+Documentation (Basic):
+API reference (Postman/Swagger)
+Quickstart guide (5-minute integration)
+Webhook examples
+Deliverable: 3 startups testing your API in production
+Month 4: Developer Experience + Stability
+Week 1-2: SDKs
+Build:
+Node.js SDK (priority #1 for Kenyan devs)
+const payments = require('your-sdk');
+payments.subscriptions.create({...});
+PHP SDK (many Kenyan devs use Laravel)
+Python SDK (nice to have)
+Documentation:
+Code examples for each SDK
+Common use cases (create subscription, handle webhooks)
+Week 3-4: Dashboard (MVP)
+Frontend (React/Next.js):
+Authentication (email/password)
+Pages:
+Overview: Total revenue, active subscriptions, failed payments
+Customers: List, search, view details
+Subscriptions: List, filter by status
+Transactions: Payment history
+API Keys: Generate test/live keys
+Webhooks: Configure webhook URL, view logs
+Deliverable: Developers can manage subscriptions via dashboard (not just API)
+Month 5: Advanced Features + Scale
+Week 1-2: Proration
+Backend:
+Calculate prorated charges when customer upgrades/downgrades mid-cycle
+Example logic:
+Customer on KES 1000/month plan (Day 15 of 30)
+Upgrades to KES 5000/month
+
+Unused time on old plan: 15/30 = 50%
+Credit: 1000 × 0.5 = KES 500
+
+New plan for remaining time: 5000 × 0.5 = KES 2500
+Charge now: 2500 - 500 = KES 2000
+
+Next billing: Full KES 5000
+API Endpoints:
+PATCH /v1/subscriptions/:id
+Deliverable: Customers can upgrade/downgrade without losing money
+Week 3-4: Performance & Reliability
+Backend:
+Load testing (handle 1000 subscriptions billing simultaneously)
+Database optimization:
+Index critical queries
+Set up read replicas
+Error monitoring (Sentry)
+Logging (Datadog/Better Stack)
+Status page (status.yourapi.com)
+Target Uptime: 99.5%
+Deliverable: System can handle 50-100 customers with thousands of subscriptions
+Month 6: Growth + Expansion Features
+Week 1-2: Analytics & Reporting
+Dashboard Features:
+MRR Chart (Monthly Recurring Revenue over time)
+Churn Rate (cancellations / active subscriptions)
+Failed Payment Rate (% of charges that fail)
+Cohort Analysis (retention by signup month)
+Revenue by Plan (which plans are most popular)
+Export:
+CSV export of transactions
+Accounting integrations prep (QuickBooks, Xero)
+Week 3-4: Card Payment Support
+Backend:
+Integrate cards via PSP partner
+Store tokenized card details
+Support card + M-Pesa in same subscription
+{
+  "payment_methods": [
+    { "type": "mpesa", "primary": true },
+    { "type": "card", "fallback": true }
+  ]
+}
+Retry failed M-Pesa with card automatically
+Deliverable: Reduce failed payment rate by 20-30%
+🎯 End of Month 6 Goals
+Metrics:
+✅ 10-15 paying customers
+✅ KES 500K-1M in total payment volume processed
+✅ 99.5%+ uptime
+✅ Sub-500ms API response times
+✅ 5-star reviews from design partners
+Product:
+✅ Full subscription lifecycle (create, charge, retry, cancel)
+✅ Webhooks working reliably
+✅ M-Pesa + cards supported
+✅ Beautiful docs + SDKs
+✅ Dashboard with analytics
+Post-Launch: Month 7-12 (Expansion Phase)
+Month 7-8: Enterprise Features
+Team accounts (multiple users)
+Role-based access control
+Audit logs
+Custom retry schedules
+SLA guarantees
+Month 9-10: Nigeria Expansion
+Integrate Nigerian payment methods:
+Bank transfers
+USSD
+Cards (Verve, Visa, Mastercard)
+Partner with Nigerian PSP (Paystack's rails or Flutterwave)
+Adjust API for NGN currency
+Month 11-12: Advanced Platform Features
+Metered billing (pay per API call, storage, etc.)
+Usage-based pricing (not just flat subscriptions)
+Invoicing (generate PDF invoices)
+Tax handling (VAT for different countries)
+Discounts & coupons
+Critical Success Factors
+✅ Must Do Well:
+Reliability: Billing must work 99.9% of the time
+Reconciliation: M-Pesa callbacks must always match correctly
+Documentation: Better than Flutterwave's (high bar)
+Support: Direct Slack/WhatsApp access for first 20 customers
+❌ Don't Over-Build:
+Don't build mobile apps (unnecessary)
+Don't build marketing website (simple landing page is fine)
+Don't support 10 countries at once (Kenya first)
+Don't build advanced analytics year 1 (basics are enough)
+Technical Stack Recommendation
+Backend:
+Language: Node.js (TypeScript) or Go
+Framework: Express or Fastify (Node) / Gin (Go)
+Database: PostgreSQL (Neon, Supabase, or Railway)
+Cache/Queue: Redis (Upstash)
+Hosting: Railway, Render, or AWS
+Frontend:
+Framework: Next.js (React)
+UI: Tailwind + shadcn/ui
+Hosting: Vercel
+Services:
+Email: SendGrid or Resend
+SMS: Africa's Talking
+Monitoring: Sentry + Better Stack
+Docs: Mintlify or ReadMe
+Budget Estimate (6 Months)
+Item
+Cost (USD)
+Engineers (2 × $2K/mo × 6)
+$24,000
+Frontend dev (1 × $1.5K/mo × 6)
+$9,000
+PSP license/partnership
+$5,000
+Infrastructure (hosting, services)
+$3,000
+Legal/compliance
+$2,000
+Total
+~$43,000
+Bootstrapped version: $15K-20K if founder codes + 1 contractor
+Key Milestones (Gantt Chart)
+Month 1: [████████] Foundation + PSP integration
+Month 2: [████████] M-Pesa live + Webhooks
+Month 3: [████████] Billing engine + First customers 🎯
+Month 4: [████████] SDKs + Dashboard
+Month 5: [████████] Proration + Scale
+Month 6: [████████] Analytics + Cards
+Risk Mitigation
+Risk 1: PSP Integration Takes Too Long
+Mitigation: Start conversations Month 0, sign agreement by Week 2
+Backup: Use Flutterwave's API as temporary rails while negotiating direct
+Risk 2: Can't Find Design Partners
+Mitigation: Offer $500 credit + free integration support
+Backup: Use your own SaaS product as first customer
+Risk 3: M-Pesa Reconciliation Fails
+Mitigation: Build robust idempotency, test heavily in sandbox
+Backup: Manual reconciliation tool for first 3 months
+Risk 4: Competitors Launch Similar Product
+Mitigation: Move fast, lock in first 10 customers with annual contracts
+Differentiation: Better DX, faster support, more reliable
+What to Build First (Priority Order)
+Must Have (Month 1-3):
+Subscriptions (create, charge, cancel)
+M-Pesa integration
+Webhooks
+Basic docs
+Should Have (Month 4-5):
+5. Dashboard
+6. SDKs
+7. Retry logic
+8. Analytics
+Nice to Have (Month 6+):
+9. Proration
+10. Card support
+11. Multi-currency
+Success Looks Like (End of Month 6)
+You can say:
+"We power subscriptions for 15 Kenyan startups. We've processed KES 5M in payments with 99.6% uptime. Developers integrate in under 30 minutes. Our retry logic recovers 60% of failed M-Pesa payments automatically."
+That's your fundraising pitch for Series A or expansion capital.
+Next Actions (This Week)
+Week 1 Checklist:
+[ ] Recruit co-founder/engineer (if solo)
+[ ] Email 5 PSPs (Cellulant, DPO, KCB, Equity, Co-op Bank)
+[ ] Set up basic landing page (yourapi.com)
+[ ] Message 10 Kenyan SaaS founders (gauge interest)
+[ ] Set up GitHub repo + basic project structure
