@@ -1,0 +1,35 @@
+created
+  ↓
+pending
+  ↓
+successful  → final
+failed      → final
+expired     → final
+1. Client → Paycraft API
+   POST /v1/payments
+   { amount, phone, reference }
+
+2. Paycraft
+   - Validate request
+   - Create payment record (status = pending)
+   - Generate idempotency key
+
+3. Paycraft → PSP → M-Pesa
+   STK Push request
+
+4. M-Pesa → Customer Phone
+   "Enter PIN to pay KES 1500"
+
+5. Customer
+   - Confirms OR cancels
+
+6. M-Pesa → PSP → Paycraft (callback)
+   Payment result
+
+7. Paycraft
+   - Verify signature
+   - Update payment status
+   - Emit webhook event
+
+8. Paycraft → Merchant Webhook
+   payment.successful OR payment.failed
