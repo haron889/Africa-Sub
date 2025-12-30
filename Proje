@@ -1,0 +1,722 @@
+Complete Project Structure (Recurring Billing API)
+Tech Stack Decision
+Backend: Node.js + TypeScript + Express
+Database: PostgreSQL
+Cache/Queue: Redis
+Frontend: Next.js + TypeScript
+Docs: Mintlify
+Repository Structure
+recurring-billing-platform/
+│
+├── apps/
+│   ├── api/                    # Main API service
+│   ├── dashboard/              # Customer-facing dashboard
+│   ├── docs/                   # Developer documentation site
+│   └── workers/                # Background job processors
+│
+├── packages/                   # Shared code (monorepo)
+│   ├── database/               # Database models & migrations
+│   ├── sdk-node/               # Node.js SDK
+│   ├── sdk-php/                # PHP SDK
+│   ├── sdk-python/             # Python SDK
+│   ├── shared-types/           # TypeScript types
+│   └── ui-components/          # Shared React components
+│
+├── infrastructure/             # DevOps & deployment
+│   ├── docker/
+│   ├── kubernetes/
+│   └── terraform/
+│
+├── scripts/                    # Utility scripts
+├── .github/                    # GitHub Actions CI/CD
+├── package.json                # Monorepo root
+├── turbo.json                  # Turborepo config
+└── README.md
+1. API Service (apps/api/)
+Full Directory Structure
+apps/api/
+│
+├── src/
+│   ├── config/                 # Configuration
+│   │   ├── database.ts
+│   │   ├── redis.ts
+│   │   ├── env.ts
+│   │   └── index.ts
+│   │
+│   ├── middleware/             # Express middleware
+│   │   ├── auth.ts             # API key validation
+│   │   ├── errorHandler.ts    # Global error handling
+│   │   ├── rateLimiter.ts     # Rate limiting
+│   │   ├── validator.ts       # Request validation
+│   │   └── logging.ts         # Request logging
+│   │
+│   ├── routes/                 # API routes
+│   │   ├── v1/
+│   │   │   ├── customers.ts
+│   │   │   ├── paymentMethods.ts
+│   │   │   ├── plans.ts
+│   │   │   ├── subscriptions.ts
+│   │   │   ├── transactions.ts
+│   │   │   ├── webhooks.ts
+│   │   │   └── index.ts
+│   │   └── index.ts
+│   │
+│   ├── controllers/            # Business logic
+│   │   ├── CustomerController.ts
+│   │   ├── PaymentMethodController.ts
+│   │   ├── PlanController.ts
+│   │   ├── SubscriptionController.ts
+│   │   ├── TransactionController.ts
+│   │   └── WebhookController.ts
+│   │
+│   ├── services/               # Core business services
+│   │   ├── customer/
+│   │   │   ├── CustomerService.ts
+│   │   │   └── CustomerValidator.ts
+│   │   │
+│   │   ├── subscription/
+│   │   │   ├── SubscriptionService.ts
+│   │   │   ├── BillingEngine.ts
+│   │   │   ├── ProrateCalculator.ts
+│   │   │   └── TrialManager.ts
+│   │   │
+│   │   ├── payment/
+│   │   │   ├── PaymentProcessor.ts
+│   │   │   ├── MpesaService.ts
+│   │   │   ├── CardService.ts
+│   │   │   └── ReconciliationService.ts
+│   │   │
+│   │   ├── retry/
+│   │   │   ├── RetryEngine.ts
+│   │   │   ├── RetryScheduler.ts
+│   │   │   └── DunningService.ts
+│   │   │
+│   │   ├── webhook/
+│   │   │   ├── WebhookDispatcher.ts
+│   │   │   ├── WebhookRetryService.ts
+│   │   │   └── WebhookSignature.ts
+│   │   │
+│   │   ├── notification/
+│   │   │   ├── EmailService.ts
+│   │   │   ├── SmsService.ts
+│   │   │   └── templates/
+│   │   │       ├── trial-ending.html
+│   │   │       ├── payment-failed.html
+│   │   │       └── payment-succeeded.html
+│   │   │
+│   │   └── analytics/
+│   │       ├── MrrCalculator.ts
+│   │       ├── ChurnCalculator.ts
+│   │       └── MetricsService.ts
+│   │
+│   ├── integrations/           # Third-party integrations
+│   │   ├── psp/
+│   │   │   ├── PSPInterface.ts
+│   │   │   ├── CellulantAdapter.ts
+│   │   │   ├── DpoAdapter.ts
+│   │   │   └── FlutterwaveAdapter.ts
+│   │   │
+│   │   ├── mpesa/
+│   │   │   ├── StkPush.ts
+│   │   │   ├── C2BCallback.ts
+│   │   │   └── QueryStatus.ts
+│   │   │
+│   │   ├── sendgrid/
+│   │   │   └── EmailClient.ts
+│   │   │
+│   │   └── africastalking/
+│   │       └── SmsClient.ts
+│   │
+│   ├── models/                 # Database models (Prisma/TypeORM)
+│   │   ├── Customer.ts
+│   │   ├── PaymentMethod.ts
+│   │   ├── Plan.ts
+│   │   ├── Subscription.ts
+│   │   ├── Transaction.ts
+│   │   ├── WebhookEvent.ts
+│   │   ├── WebhookEndpoint.ts
+│   │   ├── ApiKey.ts
+│   │   └── AuditLog.ts
+│   │
+│   ├── queues/                 # Background jobs (Bull)
+│   │   ├── jobs/
+│   │   │   ├── ProcessBillingJob.ts
+│   │   │   ├── RetryFailedPaymentJob.ts
+│   │   │   ├── SendWebhookJob.ts
+│   │   │   ├── SendNotificationJob.ts
+│   │   │   └── ReconcilePaymentJob.ts
+│   │   │
+│   │   └── workers/
+│   │       ├── BillingWorker.ts
+│   │       ├── WebhookWorker.ts
+│   │       └── NotificationWorker.ts
+│   │
+│   ├── utils/                  # Helper utilities
+│   │   ├── idGenerator.ts      # Generate unique IDs (cust_xxx, sub_xxx)
+│   │   ├── encryption.ts       # Encrypt sensitive data
+│   │   ├── phoneFormatter.ts   # Format +254... numbers
+│   │   ├── currencyFormatter.ts
+│   │   ├── dateHelpers.ts
+│   │   └── errorCodes.ts
+│   │
+│   ├── types/                  # TypeScript types
+│   │   ├── api.types.ts
+│   │   ├── subscription.types.ts
+│   │   ├── payment.types.ts
+│   │   └── webhook.types.ts
+│   │
+│   ├── validators/             # Request validation schemas (Zod)
+│   │   ├── customer.schema.ts
+│   │   ├── subscription.schema.ts
+│   │   └── payment.schema.ts
+│   │
+│   ├── tests/                  # Tests
+│   │   ├── unit/
+│   │   │   ├── services/
+│   │   │   └── utils/
+│   │   │
+│   │   ├── integration/
+│   │   │   ├── api/
+│   │   │   └── webhooks/
+│   │   │
+│   │   └── e2e/
+│   │       └── subscription-flow.test.ts
+│   │
+│   ├── app.ts                  # Express app setup
+│   ├── server.ts               # Server entry point
+│   └── index.ts
+│
+├── prisma/                     # Database
+│   ├── schema.prisma           # Database schema
+│   ├── migrations/
+│   └── seed.ts                 # Seed data for testing
+│
+├── .env.example
+├── .env.test
+├── .env.development
+├── .env.production
+├── package.json
+├── tsconfig.json
+├── Dockerfile
+└── README.md
+2. Key File Examples
+apps/api/src/app.ts
+import express, { Application } from 'express';
+import cors from 'cors';
+import helmet from 'helmet';
+import morgan from 'morgan';
+import { errorHandler } from './middleware/errorHandler';
+import { rateLimiter } from './middleware/rateLimiter';
+import routes from './routes';
+
+export function createApp(): Application {
+  const app = express();
+
+  // Security
+  app.use(helmet());
+  app.use(cors({
+    origin: process.env.ALLOWED_ORIGINS?.split(',') || '*'
+  }));
+
+  // Parsing
+  app.use(express.json());
+  app.use(express.urlencoded({ extended: true }));
+
+  // Logging
+  app.use(morgan('combined'));
+
+  // Rate limiting
+  app.use(rateLimiter);
+
+  // Health check
+  app.get('/health', (req, res) => {
+    res.json({ status: 'ok', timestamp: new Date().toISOString() });
+  });
+
+  // API routes
+  app.use('/v1', routes);
+
+  // Error handling (must be last)
+  app.use(errorHandler);
+
+  return app;
+}
+apps/api/src/routes/v1/subscriptions.ts
+import { Router } from 'express';
+import { SubscriptionController } from '../../controllers/SubscriptionController';
+import { authenticate } from '../../middleware/auth';
+import { validate } from '../../middleware/validator';
+import { createSubscriptionSchema, updateSubscriptionSchema } from '../../validators/subscription.schema';
+
+const router = Router();
+const controller = new SubscriptionController();
+
+// All routes require API key authentication
+router.use(authenticate);
+
+// Create subscription
+router.post(
+  '/',
+  validate(createSubscriptionSchema),
+  controller.create
+);
+
+// Get subscription
+router.get('/:id', controller.get);
+
+// List subscriptions
+router.get('/', controller.list);
+
+// Update subscription (change plan, etc.)
+router.patch(
+  '/:id',
+  validate(updateSubscriptionSchema),
+  controller.update
+);
+
+// Cancel subscription
+router.delete('/:id', controller.cancel);
+
+export default router;
+apps/api/src/controllers/SubscriptionController.ts
+import { Request, Response, NextFunction } from 'express';
+import { SubscriptionService } from '../services/subscription/SubscriptionService';
+import { ApiError } from '../utils/ApiError';
+
+export class SubscriptionController {
+  private subscriptionService: SubscriptionService;
+
+  constructor() {
+    this.subscriptionService = new SubscriptionService();
+  }
+
+  create = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const { customer_id, plan_id, payment_method_id, trial_days } = req.body;
+      const accountId = req.accountId; // From auth middleware
+
+      const subscription = await this.subscriptionService.create({
+        accountId,
+        customerId: customer_id,
+        planId: plan_id,
+        paymentMethodId: payment_method_id,
+        trialDays: trial_days
+      });
+
+      res.status(201).json(subscription);
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  get = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const { id } = req.params;
+      const accountId = req.accountId;
+
+      const subscription = await this.subscriptionService.findById(id, accountId);
+      
+      if (!subscription) {
+        throw new ApiError(404, 'subscription_not_found', 'Subscription not found');
+      }
+
+      res.json(subscription);
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  list = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const accountId = req.accountId;
+      const { status, customer_id, limit = 50, starting_after } = req.query;
+
+      const subscriptions = await this.subscriptionService.list({
+        accountId,
+        status: status as string,
+        customerId: customer_id as string,
+        limit: Number(limit),
+        startingAfter: starting_after as string
+      });
+
+      res.json({
+        data: subscriptions,
+        has_more: subscriptions.length === Number(limit)
+      });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  update = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const { id } = req.params;
+      const accountId = req.accountId;
+      const updates = req.body;
+
+      const subscription = await this.subscriptionService.update(
+        id,
+        accountId,
+        updates
+      );
+
+      res.json(subscription);
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  cancel = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const { id } = req.params;
+      const accountId = req.accountId;
+      const { cancel_at_period_end } = req.body;
+
+      const subscription = await this.subscriptionService.cancel(
+        id,
+        accountId,
+        { cancelAtPeriodEnd: cancel_at_period_end }
+      );
+
+      res.json(subscription);
+    } catch (error) {
+      next(error);
+    }
+  };
+}
+apps/api/src/services/subscription/SubscriptionService.ts
+import { prisma } from '../../config/database';
+import { BillingEngine } from './BillingEngine';
+import { WebhookDispatcher } from '../webhook/WebhookDispatcher';
+import { generateId } from '../../utils/idGenerator';
+
+export class SubscriptionService {
+  private billingEngine: BillingEngine;
+  private webhookDispatcher: WebhookDispatcher;
+
+  constructor() {
+    this.billingEngine = new BillingEngine();
+    this.webhookDispatcher = new WebhookDispatcher();
+  }
+
+  async create(params: {
+    accountId: string;
+    customerId: string;
+    planId: string;
+    paymentMethodId: string;
+    trialDays?: number;
+  }) {
+    const { accountId, customerId, planId, paymentMethodId, trialDays } = params;
+
+    // Validate customer exists
+    const customer = await prisma.customer.findFirst({
+      where: { id: customerId, accountId }
+    });
+    if (!customer) {
+      throw new Error('Customer not found');
+    }
+
+    // Validate plan exists
+    const plan = await prisma.plan.findFirst({
+      where: { id: planId, accountId }
+    });
+    if (!plan) {
+      throw new Error('Plan not found');
+    }
+
+    // Validate payment method
+    const paymentMethod = await prisma.paymentMethod.findFirst({
+      where: { id: paymentMethodId, customerId }
+    });
+    if (!paymentMethod) {
+      throw new Error('Payment method not found');
+    }
+
+    // Calculate dates
+    const now = new Date();
+    const trialEnd = trialDays 
+      ? new Date(now.getTime() + trialDays * 24 * 60 * 60 * 1000)
+      : null;
+    const currentPeriodStart = trialEnd || now;
+    const currentPeriodEnd = this.calculatePeriodEnd(currentPeriodStart, plan.interval);
+
+    // Create subscription
+    const subscription = await prisma.subscription.create({
+      data: {
+        id: generateId('sub'),
+        accountId,
+        customerId,
+        planId,
+        paymentMethodId,
+        status: trialEnd ? 'trialing' : 'active',
+        trialStart: trialDays ? now : null,
+        trialEnd,
+        currentPeriodStart,
+        currentPeriodEnd,
+        cancelAtPeriodEnd: false
+      },
+      include: {
+        customer: true,
+        plan: true,
+        paymentMethod: true
+      }
+    });
+
+    // Dispatch webhook
+    await this.webhookDispatcher.dispatch(accountId, {
+      event: 'subscription.created',
+      data: subscription
+    });
+
+    // Schedule trial ending reminder if applicable
+    if (trialEnd) {
+      const reminderDate = new Date(trialEnd.getTime() - 3 * 24 * 60 * 60 * 1000);
+      await this.billingEngine.scheduleTrialEndingReminder(subscription.id, reminderDate);
+    }
+
+    return subscription;
+  }
+
+  async findById(id: string, accountId: string) {
+    return prisma.subscription.findFirst({
+      where: { id, accountId },
+      include: {
+        customer: true,
+        plan: true,
+        paymentMethod: true
+      }
+    });
+  }
+
+  async list(params: {
+    accountId: string;
+    status?: string;
+    customerId?: string;
+    limit: number;
+    startingAfter?: string;
+  }) {
+    const { accountId, status, customerId, limit, startingAfter } = params;
+
+    return prisma.subscription.findMany({
+      where: {
+        accountId,
+        ...(status && { status }),
+        ...(customerId && { customerId }),
+        ...(startingAfter && { id: { gt: startingAfter } })
+      },
+      take: limit,
+      orderBy: { createdAt: 'desc' },
+      include: {
+        customer: true,
+        plan: true
+      }
+    });
+  }
+
+  async update(id: string, accountId: string, updates: any) {
+    const subscription = await this.findById(id, accountId);
+    if (!subscription) {
+      throw new Error('Subscription not found');
+    }
+
+    // Handle plan change (proration)
+    if (updates.plan_id && updates.plan_id !== subscription.planId) {
+      return this.changePlan(subscription, updates.plan_id, updates.proration_behavior);
+    }
+
+    // Regular updates
+    const updated = await prisma.subscription.update({
+      where: { id },
+      data: updates,
+      include: {
+        customer: true,
+        plan: true,
+        paymentMethod: true
+      }
+    });
+
+    await this.webhookDispatcher.dispatch(accountId, {
+      event: 'subscription.updated',
+      data: updated
+    });
+
+    return updated;
+  }
+
+  async cancel(id: string, accountId: string, options: { cancelAtPeriodEnd: boolean }) {
+    const subscription = await this.findById(id, accountId);
+    if (!subscription) {
+      throw new Error('Subscription not found');
+    }
+
+    const updated = await prisma.subscription.update({
+      where: { id },
+      data: {
+        cancelAtPeriodEnd: options.cancelAtPeriodEnd,
+        canceledAt: new Date(),
+        ...(options.cancelAtPeriodEnd ? {} : { status: 'canceled' })
+      },
+      include: {
+        customer: true,
+        plan: true
+      }
+    });
+
+    await this.webhookDispatcher.dispatch(accountId, {
+      event: 'subscription.canceled',
+      data: updated
+    });
+
+    return updated;
+  }
+
+  private calculatePeriodEnd(start: Date, interval: string): Date {
+    const end = new Date(start);
+    switch (interval) {
+      case 'day':
+        end.setDate(end.getDate() + 1);
+        break;
+      case 'week':
+        end.setDate(end.getDate() + 7);
+        break;
+      case 'month':
+        end.setMonth(end.getMonth() + 1);
+        break;
+      case 'year':
+        end.setFullYear(end.getFullYear() + 1);
+        break;
+    }
+    return end;
+  }
+
+  private async changePlan(subscription: any, newPlanId: string, prorationBehavior: string) {
+    // Proration logic here (complex - see separate file)
+    // Calculate credit from old plan, charge for new plan
+    // This would be in ProrateCalculator.ts
+    throw new Error('Not implemented yet');
+  }
+}
+apps/api/src/services/payment/MpesaService.ts
+import axios from 'axios';
+import { prisma } from '../../config/database';
+import { generateId } from '../../utils/idGenerator';
+
+export class MpesaService {
+  private baseUrl: string;
+  private consumerKey: string;
+  private consumerSecret: string;
+
+  constructor() {
+    this.baseUrl = process.env.MPESA_BASE_URL!;
+    this.consumerKey = process.env.MPESA_CONSUMER_KEY!;
+    this.consumerSecret = process.env.MPESA_CONSUMER_SECRET!;
+  }
+
+  async initiatePayment(params: {
+    phoneNumber: string;
+    amount: number;
+    reference: string;
+  }) {
+    const { phoneNumber, amount, reference } = params;
+
+    // Get access token
+    const token = await this.getAccessToken();
+
+    // Format phone number
+    const formattedPhone = this.formatPhoneNumber(phoneNumber);
+
+    // STK Push request
+    const response = await axios.post(
+      `${this.baseUrl}/mpesa/stkpush/v1/processrequest`,
+      {
+        BusinessShortCode: process.env.MPESA_SHORTCODE,
+        Password: this.generatePassword(),
+        Timestamp: this.getTimestamp(),
+        TransactionType: 'CustomerPayBillOnline',
+        Amount: amount,
+        PartyA: formattedPhone,
+        PartyB: process.env.MPESA_SHORTCODE,
+        PhoneNumber: formattedPhone,
+        CallBackURL: `${process.env.API_BASE_URL}/webhooks/mpesa/callback`,
+        AccountReference: reference,
+        TransactionDesc: 'Subscription payment'
+      },
+      {
+        headers: {
+          Authorization: `Bearer ${token}`
+        }
+      }
+    );
+
+    // Save transaction record
+    const transaction = await prisma.transaction.create({
+      data: {
+        id: generateId('txn'),
+        amount,
+        currency: 'KES',
+        status: 'pending',
+        provider: 'mpesa',
+        providerReference: response.data.CheckoutRequestID,
+        metadata: {
+          phoneNumber: formattedPhone,
+          reference
+        }
+      }
+    });
+
+    return {
+      transactionId: transaction.id,
+      checkoutRequestId: response.data.CheckoutRequestID,
+      status: 'pending'
+    };
+  }
+
+  async handleCallback(callbackData: any) {
+    const { CheckoutRequestID, ResultCode, ResultDesc } = callbackData.Body.stkCallback;
+
+    // Find transaction
+    const transaction = await prisma.transaction.findFirst({
+      where: { providerReference: CheckoutRequestID }
+    });
+
+    if (!transaction) {
+      console.error('Transaction not found for callback:', CheckoutRequestID);
+      return;
+    }
+
+    // Update transaction status
+    if (ResultCode === 0) {
+      // Success
+      const mpesaReceiptNumber = callbackData.Body.stkCallback.CallbackMetadata
+        .Item.find((item: any) => item.Name === 'MpesaReceiptNumber')?.Value;
+
+      await prisma.transaction.update({
+        where: { id: transaction.id },
+        data: {
+          status: 'succeeded',
+          providerReceipt: mpesaReceiptNumber,
+          completedAt: new Date()
+        }
+      });
+
+      // Trigger payment.succeeded webhook
+      // Update subscription status if this was for a subscription
+    } else {
+      // Failed
+      await prisma.transaction.update({
+        where: { id: transaction.id },
+        data: {
+          status: 'failed',
+          failureReason: ResultDesc,
+          failedAt: new Date()
+        }
+      });
+
+      // Trigger payment.failed webhook
+      // Schedule retry if applicable
+    }
+  }
+
+  private async getAccessToken(): Promise<string> {
+    const auth = Buffer.from(`${this.consumerKey}:${this.consumerSecret}`).toString('base64');
+
